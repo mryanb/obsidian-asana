@@ -17,6 +17,7 @@ import {
 interface AsanaPluginSettings {
   asanaToken: string;
   markTaskAsCompleted: boolean;
+  pinnedProjects: string[]; // Array of project IDs or names
 }
 
 /**
@@ -25,6 +26,7 @@ interface AsanaPluginSettings {
 const DEFAULT_SETTINGS: AsanaPluginSettings = {
   asanaToken: '',
   markTaskAsCompleted: false,
+  pinnedProjects: [],
 };
 
 /**
@@ -166,13 +168,22 @@ export default class AsanaPlugin extends Plugin {
         },
       });
       const projects = projectsResponse.json.data;
+      const pinnedProjects = this.settings.pinnedProjects; // Retrieve pinned projects from settings
 
       // Prompt for project selection
-      const project = await this.promptForSelection(
-        'Select Project',
-        projects.map((p: any) => ({ name: p.name, gid: p.gid }))
-      );
-      if (!project) return null;
+      // const project = await this.promptForSelection(
+      //   'Select Project',
+      //   projects.map((p: any) => ({ name: p.name, gid: p.gid }))
+      // );
+      // New project selector
+      const project = await new Promise<{ name: string; gid: string } | null>((resolve) => {
+        const modal = new SelectionModal(this.app, 'Select Project', projects, pinnedProjects, resolve);
+        modal.open();
+      });
+      if (!project) {
+        new Notice('Project selection was canceled.');
+        return null;
+      }
 
       // Fetch sections in the project
       const sectionsResponse = await requestUrl({
@@ -210,9 +221,13 @@ export default class AsanaPlugin extends Plugin {
    * @param options The list of options to select from.
    * @returns The selected option.
    */
-  async promptForSelection(title: string, options: Array<{ name: string; gid: string }>) {
+  async promptForSelection(
+    title: string,
+    options: Array<{ name: string; gid: string }>,
+    pinned: string[] = [] // Add optional pinned parameter
+  ): Promise<{ name: string; gid: string } | null> {
     return new Promise<{ name: string; gid: string } | null>((resolve) => {
-      const modal = new SelectionModal(this.app as App, title, options, resolve);
+      const modal = new SelectionModal(this.app as App, title, options, pinned, resolve);
       modal.open();
     });
   }
@@ -324,31 +339,113 @@ export default class AsanaPlugin extends Plugin {
 class SelectionModal extends Modal {
   title: string;
   options: Array<{ name: string; gid: string }>;
+  pinned: string[];
   onSelect: (result: { name: string; gid: string } | null) => void;
 
   constructor(
     app: App,
     title: string,
     options: Array<{ name: string; gid: string }>,
+    pinned: string[] = [],
     onSelect: (result: { name: string; gid: string } | null) => void
   ) {
     super(app);
     this.title = title;
     this.options = options;
+    this.pinned = pinned;
     this.onSelect = onSelect;
   }
 
   onOpen() {
     const { contentEl } = this;
+    contentEl.empty(); // Clear any existing content
+
     contentEl.createEl('h2', { text: this.title });
 
-    this.options.forEach((option) => {
-      const button = contentEl.createEl('button', { text: option.name });
-      button.onclick = () => {
-        this.onSelect(option);
-        this.close();
-      };
+    // Create search input field
+    const searchInput = contentEl.createEl('input', {
+      type: 'text',
+      placeholder: 'Type to search...',
     });
+    searchInput.style.width = '100%';
+    searchInput.style.marginBottom = '10px';
+
+    // Create a container for the options
+    const optionsContainer = contentEl.createEl('div');
+    optionsContainer.style.maxHeight = '300px';
+    optionsContainer.style.overflowY = 'auto';
+
+    // Function to render options based on the search query
+    const renderOptions = (query: string) => {
+      optionsContainer.empty(); // Clear previous options
+
+      const lowerQuery = query.toLowerCase();
+
+      // Filter options based on the query
+      const filteredOptions = this.options.filter((option) => {
+        return option.name.toLowerCase().includes(lowerQuery);
+      });
+
+      // Separate pinned and unpinned options
+      const pinnedOptions = filteredOptions.filter(
+        (option) =>
+          this.pinned.indexOf(option.gid) !== -1 ||
+          this.pinned.indexOf(option.name) !== -1
+      );
+      const otherOptions = filteredOptions.filter(
+        (option) =>
+          this.pinned.indexOf(option.gid) === -1 &&
+          this.pinned.indexOf(option.name) === -1
+      );
+
+      // Render pinned options
+      if (pinnedOptions.length > 0) {
+        optionsContainer.createEl('h3', { text: 'Pinned' });
+        pinnedOptions.forEach((option) => {
+          const button = optionsContainer.createEl('button', { text: option.name });
+          button.style.display = 'block';
+          button.style.width = '100%';
+          button.style.marginBottom = '5px';
+          button.onclick = () => {
+            this.onSelect(option);
+            this.close();
+          };
+        });
+      }
+
+      // Render other options
+      if (otherOptions.length > 0) {
+        if (pinnedOptions.length > 0) {
+          optionsContainer.createEl('h3', { text: 'Others' });
+        }
+        otherOptions.forEach((option) => {
+          const button = optionsContainer.createEl('button', { text: option.name });
+          button.style.display = 'block';
+          button.style.width = '100%';
+          button.style.marginBottom = '5px';
+          button.onclick = () => {
+            this.onSelect(option);
+            this.close();
+          };
+        });
+      }
+
+      // Handle no results
+      if (filteredOptions.length === 0) {
+        optionsContainer.createEl('p', { text: 'No results found.' });
+      }
+    };
+
+    // Initial rendering of options
+    renderOptions('');
+
+    // Add event listener for search input
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value;
+      renderOptions(query);
+    });
+
+    contentEl.appendChild(optionsContainer);
   }
 
   onClose() {
@@ -381,16 +478,6 @@ class AsanaSettingTab extends PluginSettingTab {
       .setDesc(
         'Enter your Asana Personal Access Token. You can create one in your Asana account settings.'
       )
-      // .addText((text: TextComponent) =>
-      //   text
-      //     .setPlaceholder('Enter your token')
-      //     .setValue(this.plugin.settings.asanaToken)
-      //     .onChange(async (value) => {
-      //       this.plugin.settings.asanaToken = value.trim();
-      //       await this.plugin.saveSettings();
-      //     })
-      // );
-      // Corrected addText
       .addText((text: TextComponent) => {
         text.setPlaceholder('Enter your token') // Correct usage of TextComponent
           .setValue(this.plugin.settings.asanaToken)
@@ -404,13 +491,6 @@ class AsanaSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Mark Task as Completed')
       .setDesc('Automatically mark the task as completed in Obsidian after creating it in Asana.')
-      // .addToggle((toggle: ToggleComponent) =>
-      //   toggle.setValue(this.plugin.settings.markTaskAsCompleted).onChange(async (value) => {
-      //     this.plugin.settings.markTaskAsCompleted = value;
-      //     await this.plugin.saveSettings();
-      //   })
-      // );
-      // Corrected addToggle
       .addToggle((toggle: ToggleComponent) => {
         toggle.setValue(this.plugin.settings.markTaskAsCompleted)
           .onChange(async (value: boolean) => { // Explicitly type `value`
@@ -418,5 +498,20 @@ class AsanaSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    // Add pinned projects
+    new Setting(containerEl)
+      .setName('Pinned Projects')
+      .setDesc('Enter project names or IDs to pin them in the project selection modal.')
+      .addTextArea((textArea) =>
+        textArea
+          .setPlaceholder('Enter project names/IDs, one per line')
+          .setValue(this.plugin.settings.pinnedProjects.join('\n'))
+          .onChange(async (value: string) => {
+            this.plugin.settings.pinnedProjects = value.split('\n').map((item) => item.trim());
+            await this.plugin.saveSettings();
+          })
+      );
+
   }
 }
