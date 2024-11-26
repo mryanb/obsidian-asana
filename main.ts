@@ -91,10 +91,22 @@ export default class AsanaPlugin extends Plugin {
   async createAsanaTask(editor: Editor) {
     // Get the selected text or the current line
     let selectedText = editor.getSelection();
+
+    // Use current line if no selected text
     if (!selectedText) {
+      console.log('No selected text, using the current line');
       const cursor = editor.getCursor();
       selectedText = editor.getLine(cursor.line);
     }
+
+    console.log(selectedText);
+
+    // Remove leading whitespace, then any list markers and checkboxes
+    selectedText = selectedText
+      .replace(/^\s*(?:[-*]\s*)?(?:\[[ xX]\]\s*)?/, '')
+      .trim();
+
+    console.log(selectedText);
 
     // Prompt the user to select workspace, project, and section
     const taskDetails = await this.promptForTaskDetails();
@@ -121,7 +133,7 @@ export default class AsanaPlugin extends Plugin {
         taskDetails.sectionName
       );
 
-      // Optionally mark the task as completed in Obsidian
+      // Optionally mark the task as completed based on settings
       if (this.settings.markTaskAsCompleted) {
         this.markTaskAsCompleted(editor);
       }
@@ -161,7 +173,7 @@ export default class AsanaPlugin extends Plugin {
 
       // Fetch projects in the workspace
       const projectsResponse = await requestUrl({
-        url: `https://app.asana.com/api/1.0/workspaces/${workspace.gid}/projects`,
+        url: `https://app.asana.com/api/1.0/workspaces/${workspace.gid}/projects?archived=false`,
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -170,12 +182,6 @@ export default class AsanaPlugin extends Plugin {
       const projects = projectsResponse.json.data;
       const pinnedProjects = this.settings.pinnedProjects; // Retrieve pinned projects from settings
 
-      // Prompt for project selection
-      // const project = await this.promptForSelection(
-      //   'Select Project',
-      //   projects.map((p: any) => ({ name: p.name, gid: p.gid }))
-      // );
-      // New project selector
       const project = await new Promise<{ name: string; gid: string } | null>((resolve) => {
         const modal = new SelectionModal(this.app, 'Select Project', projects, pinnedProjects, resolve);
         modal.open();
@@ -185,7 +191,7 @@ export default class AsanaPlugin extends Plugin {
         return null;
       }
 
-      // Fetch sections in the project
+      // Fetch sections in the selected project,
       const sectionsResponse = await requestUrl({
         url: `https://app.asana.com/api/1.0/projects/${project.gid}/sections`,
         method: 'GET',
@@ -193,21 +199,37 @@ export default class AsanaPlugin extends Plugin {
           Authorization: `Bearer ${token}`,
         },
       });
+
       const sections = sectionsResponse.json.data;
 
-      // Prompt for section selection
-      const section = await this.promptForSelection(
-        'Select Section',
-        sections.map((s: any) => ({ name: s.name, gid: s.gid }))
-      );
-      if (!section) return null;
+      // Check the number of sections
+      let selectedSection: { name: string; gid: string } | null = null;
+
+      if (sections.length > 1) {
+        // Prompt user to select a section
+        selectedSection = await this.promptForSelection(
+          'Select Section',
+          sections.map((section: any) => ({ name: section.name, gid: section.gid }))
+        );
+
+        if (!selectedSection) {
+          new Notice('Section selection was canceled.');
+          return null; // Exit if the user cancels the selection
+        }
+      } else if (sections.length === 1) {
+        // Automatically select the only section
+        selectedSection = { name: sections[0].name, gid: sections[0].gid };
+      } else {
+        // No sections available, skip the section selection
+        new Notice('No sections found in this project. Skipping section selection.');
+      }
 
       return {
         workspaceGid: workspace.gid,
         projectGid: project.gid,
-        sectionGid: section.gid,
+        sectionGid: selectedSection.gid,
         projectName: project.name,
-        sectionName: section.name,
+        sectionName: selectedSection.name,
       };
     } catch (error) {
       new Notice(`Error fetching Asana data: ${error.message}`);
