@@ -18,6 +18,7 @@ interface AsanaPluginSettings {
   asanaToken: string;
   markTaskAsCompleted: boolean;
   pinnedProjects: string[]; // Array of project IDs or names
+  enableMarkdownLink: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ const DEFAULT_SETTINGS: AsanaPluginSettings = {
   asanaToken: '',
   markTaskAsCompleted: false,
   pinnedProjects: [],
+  enableMarkdownLink: true,
 };
 
 /**
@@ -99,14 +101,10 @@ export default class AsanaPlugin extends Plugin {
       selectedText = editor.getLine(cursor.line);
     }
 
-    console.log(selectedText);
-
     // Remove leading whitespace, then any list markers and checkboxes
     selectedText = selectedText
       .replace(/^\s*(?:[-*]\s*)?(?:\[[ xX]\]\s*)?/, '')
       .trim();
-
-    console.log(selectedText);
 
     // Prompt the user to select workspace, project, and section
     const taskDetails = await this.promptForTaskDetails();
@@ -332,6 +330,11 @@ export default class AsanaPlugin extends Plugin {
     projectName: string,
     sectionName: string
   ) {
+    if (!this.settings.enableMarkdownLink) {
+      // If the setting is disabled, do nothing
+      return;
+    }
+    
     const linkText = `[asana#${projectName}/${sectionName}](${taskUrl})`;
     const selectedText = editor.getSelection();
     if (selectedText) {
@@ -520,6 +523,16 @@ class AsanaSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl)
+      .setName('Enable Markdown Link')
+      .setDesc('Insert a markdown link to the task record in the note after task creation.')
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.enableMarkdownLink).onChange(async (value) => {
+          this.plugin.settings.enableMarkdownLink = value;
+          await this.plugin.saveSettings();
+        })
+      );
 
     // Add pinned projects
     new Setting(containerEl)
