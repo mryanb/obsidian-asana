@@ -1,6 +1,6 @@
 import { 
   App, 
-  Modal, 
+  FuzzySuggestModal, 
   Notice, 
   Plugin, 
   PluginSettingTab, 
@@ -66,6 +66,9 @@ export default class AsanaPlugin extends Plugin {
       })
     );
     */
+
+    // // Load the CSS
+    // this.addStyles();
   }
 
   onunload() {
@@ -85,6 +88,11 @@ export default class AsanaPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
+
+  // // Method to load styles
+  // addStyles() {
+  //   this.registerCss();
+  // }
 
   /**
    * Main function to create an Asana task.
@@ -167,23 +175,27 @@ export default class AsanaPlugin extends Plugin {
         'Select Workspace',
         workspaces.map((ws: any) => ({ name: ws.name, gid: ws.gid }))
       );
-      if (!workspace) return null;
+      // if (!workspace) return null;
+      if (!workspace) {
+        new Notice('Workspace selection was canceled.');
+        return null;
+      }
 
       // Fetch projects in the workspace
       const projectsResponse = await requestUrl({
-        url: `https://app.asana.com/api/1.0/workspaces/${workspace.gid}/projects?archived=false`,
+        url: `https://app.asana.com/api/1.0/workspaces/${workspace.gid}/projects?is_archived=false`,
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      const projects = projectsResponse.json.data;
-      const pinnedProjects = this.settings.pinnedProjects; // Retrieve pinned projects from settings
 
-      const project = await new Promise<{ name: string; gid: string } | null>((resolve) => {
-        const modal = new SelectionModal(this.app, 'Select Project', projects, pinnedProjects, resolve);
-        modal.open();
-      });
+      const projects = projectsResponse.json.data;
+
+      const projectOptions = projects.map((p: any) => ({ name: p.name, gid: p.gid }));
+
+      const project = await this.promptForSelection('Select Project', projectOptions);
+
       if (!project) {
         new Notice('Project selection was canceled.');
         return null;
@@ -225,9 +237,9 @@ export default class AsanaPlugin extends Plugin {
       return {
         workspaceGid: workspace.gid,
         projectGid: project.gid,
-        sectionGid: selectedSection.gid,
+        sectionGid: selectedSection ? selectedSection.gid : '',
         projectName: project.name,
-        sectionName: selectedSection.name,
+        sectionName: selectedSection ? selectedSection.name : '',
       };
     } catch (error) {
       new Notice(`Error fetching Asana data: ${error.message}`);
@@ -243,11 +255,18 @@ export default class AsanaPlugin extends Plugin {
    */
   async promptForSelection(
     title: string,
-    options: Array<{ name: string; gid: string }>,
-    pinned: string[] = [] // Add optional pinned parameter
+    options: Array<{ name: string; gid: string }>
   ): Promise<{ name: string; gid: string } | null> {
-    return new Promise<{ name: string; gid: string } | null>((resolve) => {
-      const modal = new SelectionModal(this.app as App, title, options, pinned, resolve);
+    console.log(`PROMPT START - Prompting selection for: ${title}`);
+    return new Promise((resolve) => {
+      const modal = new FuzzySelectModal(this.app, title, options, (selectedItem) => {
+        if (selectedItem) {
+          console.log(`PROMPT RESULT - Selected: ${selectedItem.name} (gid: ${selectedItem.gid})`);
+        } else {
+          console.log(`PROMPT RESULT - Selection canceled for: ${title}`);
+        }
+        resolve(selectedItem);
+      });
       modal.open();
     });
   }
@@ -334,7 +353,7 @@ export default class AsanaPlugin extends Plugin {
       // If the setting is disabled, do nothing
       return;
     }
-    
+
     const linkText = `[asana#${projectName}/${sectionName}](${taskUrl})`;
     const selectedText = editor.getSelection();
     if (selectedText) {
@@ -361,121 +380,50 @@ export default class AsanaPlugin extends Plugin {
 /**
  * Modal for selection prompts.
  */
-class SelectionModal extends Modal {
-  title: string;
-  options: Array<{ name: string; gid: string }>;
-  pinned: string[];
-  onSelect: (result: { name: string; gid: string } | null) => void;
+class FuzzySelectModal extends FuzzySuggestModal<{ name: string; gid: string; isPinned?: boolean }> {
+  private resolve: (value: { name: string; gid: string } | null) => void;
+  private items: Array<{ name: string; gid: string; isPinned?: boolean }>;
+  private title: string;
+  private selectedItem: { name: string; gid: string } | null = null;
+  private resolved: boolean = false; // Tracks if resolve has been handled
 
   constructor(
     app: App,
     title: string,
-    options: Array<{ name: string; gid: string }>,
-    pinned: string[] = [],
-    onSelect: (result: { name: string; gid: string } | null) => void
+    items: Array<{ name: string; gid: string; isPinned?: boolean }>,
+    resolve: (value: { name: string; gid: string } | null) => void
   ) {
     super(app);
     this.title = title;
-    this.options = options;
-    this.pinned = pinned;
-    this.onSelect = onSelect;
+    this.items = items;
+    this.resolve = resolve;
   }
 
   onOpen() {
-    const { contentEl } = this;
-    contentEl.empty(); // Clear any existing content
-
-    contentEl.createEl('h2', { text: this.title });
-
-    // Create search input field
-    const searchInput = contentEl.createEl('input', {
-      type: 'text',
-      placeholder: 'Type to search...',
-    });
-    searchInput.style.width = '100%';
-    searchInput.style.marginBottom = '10px';
-
-    // Create a container for the options
-    const optionsContainer = contentEl.createEl('div');
-    optionsContainer.style.maxHeight = '300px';
-    optionsContainer.style.overflowY = 'auto';
-
-    // Function to render options based on the search query
-    const renderOptions = (query: string) => {
-      optionsContainer.empty(); // Clear previous options
-
-      const lowerQuery = query.toLowerCase();
-
-      // Filter options based on the query
-      const filteredOptions = this.options.filter((option) => {
-        return option.name.toLowerCase().includes(lowerQuery);
-      });
-
-      // Separate pinned and unpinned options
-      const pinnedOptions = filteredOptions.filter(
-        (option) =>
-          this.pinned.indexOf(option.gid) !== -1 ||
-          this.pinned.indexOf(option.name) !== -1
-      );
-      const otherOptions = filteredOptions.filter(
-        (option) =>
-          this.pinned.indexOf(option.gid) === -1 &&
-          this.pinned.indexOf(option.name) === -1
-      );
-
-      // Render pinned options
-      if (pinnedOptions.length > 0) {
-        optionsContainer.createEl('h3', { text: 'Pinned' });
-        pinnedOptions.forEach((option) => {
-          const button = optionsContainer.createEl('button', { text: option.name });
-          button.style.display = 'block';
-          button.style.width = '100%';
-          button.style.marginBottom = '5px';
-          button.onclick = () => {
-            this.onSelect(option);
-            this.close();
-          };
-        });
-      }
-
-      // Render other options
-      if (otherOptions.length > 0) {
-        if (pinnedOptions.length > 0) {
-          optionsContainer.createEl('h3', { text: 'Others' });
-        }
-        otherOptions.forEach((option) => {
-          const button = optionsContainer.createEl('button', { text: option.name });
-          button.style.display = 'block';
-          button.style.width = '100%';
-          button.style.marginBottom = '5px';
-          button.onclick = () => {
-            this.onSelect(option);
-            this.close();
-          };
-        });
-      }
-
-      // Handle no results
-      if (filteredOptions.length === 0) {
-        optionsContainer.createEl('p', { text: 'No results found.' });
-      }
-    };
-
-    // Initial rendering of options
-    renderOptions('');
-
-    // Add event listener for search input
-    searchInput.addEventListener('input', () => {
-      const query = searchInput.value;
-      renderOptions(query);
-    });
-
-    contentEl.appendChild(optionsContainer);
+    super.onOpen();
+    this.setTitle('herer is the titme');
+    this.setPlaceholder(this.title);
+    this.setInstructions('here is the instruction');
   }
 
-  onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
+  getItems(): Array<{ name: string; gid: string; isPinned?: boolean }> {
+    return this.items;
+  }
+
+  getItemText(item: { name: string; gid: string; isPinned?: boolean }): string {
+    return item.isPinned ? `📌 ${item.name}` : item.name;
+  }
+
+  // Should this be async or not?
+  onChooseItem(item: { name: string; gid: string }, evt: MouseEvent | KeyboardEvent) {
+    if (!this.resolved) {
+      console.log(`ITEM CHOSEN - ${item.name} (gid: ${item.gid})`);
+      this.selectedItem = item;
+      this.resolved = true; // Mark as resolved
+      this.resolve(item); // Resolve with the selected item
+    } else {
+      console.warn(`ITEM CHOSEN MULTIPLE TIMES - Ignoring extra selection: ${item.name}`);
+    }
   }
 }
 
