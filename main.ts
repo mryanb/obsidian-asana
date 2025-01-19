@@ -114,6 +114,32 @@ export default class AsanaPlugin extends Plugin {
       .replace(/^\s*(?:[-*]\s*)?(?:\[[ xX]\]\s*)?/, '')
       .trim();
 
+    // Extract indented lines for the description
+    // @TODO - Find a good way to handle descriptions
+    // const cursor = editor.getCursor();
+    // const lines = editor.getValue().split('\n'); // All lines in the editor
+    // const taskLine = cursor.line;
+    // let description = '';
+
+    // // Collect subsequent indented lines
+    // for (let i = taskLine + 1; i < lines.length; i++) {
+    //   const line = lines[i];
+    //   if (/^\s+[-*]/.test(line)) {
+    //     // Indented list item, add to description
+    //     description += line.trim() + '\n';
+    //   } else if (line.trim() === '') {
+    //     // Empty line, continue looking for more indented lines
+    //     continue;
+    //   } else {
+    //     // No longer an indented line, stop processing
+    //     break;
+    //   }
+    // }
+
+    // description = description.trim(); // Remove any trailing whitespace
+
+    // console.log(`Description: ${description}`);
+
     // Prompt the user to select workspace, project, and section
     const taskDetails = await this.promptForTaskDetails();
     if (!taskDetails) {

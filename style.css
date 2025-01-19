@@ -1,0 +1,10 @@
+.is-focused {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+
+.is-focused-some-othertest {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
