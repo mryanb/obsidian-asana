@@ -12,26 +12,6 @@ import {
 } from 'obsidian';
 import { AsanaPluginSettings, DEFAULT_SETTINGS, AsanaSettingTab } from './settings/settings';
 
-// /**
-//  * Interface for plugin settings.
-//  */
-// interface AsanaPluginSettings {
-//   asanaToken: string;
-//   markTaskAsCompleted: boolean;
-//   pinnedProjects: string[]; // Array of project IDs or names
-//   enableMarkdownLink: boolean;
-// }
-
-// /**
-//  * Default settings for the plugin.
-//  */
-// const DEFAULT_SETTINGS: AsanaPluginSettings = {
-//   asanaToken: '',
-//   markTaskAsCompleted: false,
-//   pinnedProjects: [],
-//   enableMarkdownLink: true,
-// };
-
 /**
  * Main plugin class.
  */
@@ -55,8 +35,6 @@ export default class AsanaPlugin extends Plugin {
     this.addSettingTab(new AsanaSettingTab(this.app, this));
 
     // Add right-click context menu option (requires Obsidian API version 0.13.0 or higher)
-    // Uncomment the following lines if your Obsidian version supports registering editor menu items
-    /*
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor) => {
         menu.addItem((item) => {
@@ -66,7 +44,6 @@ export default class AsanaPlugin extends Plugin {
         });
       })
     );
-    */
 
     // // Load the CSS
     // this.addStyles();

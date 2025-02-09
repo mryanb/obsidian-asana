@@ -101,18 +101,18 @@ export class AsanaSettingTab extends PluginSettingTab {
           });
       });
 
-    // Pinned Projects Input
+    // Pinned Projects Input (Scalable TextArea)
     new Setting(containerEl)
       .setName('Pinned Projects')
       .setDesc('Enter project names or IDs to pin them in the project selection modal.')
-      .addTextArea((textArea) =>
-        textArea
-          .setPlaceholder('Enter project names/IDs, one per line')
+      .addTextArea((textArea) => {
+        textArea.inputEl.setAttribute('style', 'min-height: 100px; max-height: 300px; width: 100%; overflow-y: auto; resize: vertical;');
+        textArea.setPlaceholder('Enter project names/IDs, one per line')
           .setValue(this.plugin.settings.pinnedProjects.join('\n'))
           .onChange(async (value: string) => {
             this.plugin.settings.pinnedProjects = value.split('\n').map((item) => item.trim());
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
   }
 }
