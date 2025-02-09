@@ -21,8 +21,6 @@ export default class AsanaPlugin extends Plugin {
   settings: AsanaPluginSettings;
 
   async onload() {
-    console.log('Loading Asana Task Creator plugin');
-
     // Load settings
     await this.loadSettings();
 
@@ -52,7 +50,6 @@ export default class AsanaPlugin extends Plugin {
   }
 
   onunload() {
-    console.log('Unloading Asana Task Creator plugin');
   }
 
   /**
@@ -254,14 +251,13 @@ export default class AsanaPlugin extends Plugin {
     title: string,
     options: Array<{ name: string; gid: string }>
   ): Promise<{ name: string; gid: string } | null> {
-    console.log(`PROMPT START - Prompting selection for: ${title}`);
     return new Promise((resolve) => {
       const modal = new FuzzySelectModal(this.app, title, options, (selectedItem) => {
-        if (selectedItem) {
-          console.log(`PROMPT RESULT - Selected: ${selectedItem.name} (gid: ${selectedItem.gid})`);
-        } else {
-          console.log(`PROMPT RESULT - Selection canceled for: ${title}`);
-        }
+        // if (selectedItem) {
+        //   console.log(`PROMPT RESULT - Selected: ${selectedItem.name} (gid: ${selectedItem.gid})`);
+        // } else {
+        //   console.log(`PROMPT RESULT - Selection canceled for: ${title}`);
+        // }
         resolve(selectedItem);
       });
       modal.open();
