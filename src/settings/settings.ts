@@ -36,7 +36,7 @@ export class AsanaSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Asana Task Creator Settings' });
+    containerEl.createEl('h2', { text: 'General Settings' });
 
     new Setting(containerEl)
       .setName('Status Check')
@@ -56,6 +56,10 @@ export class AsanaSettingTab extends PluginSettingTab {
     patDesc.createDiv({ text: 'Enter your Asana Personal Access Token.' });
     patDesc.createDiv({
       text: 'For security reasons, the saved API key is not shown in the input field after saving.',
+    });
+    patDesc.createEl('a', {
+      text: 'Create access token',
+      href: `https://app.asana.com/0/my-apps`,
     });
 
     let tempKeyValue = '';

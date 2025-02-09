@@ -38,12 +38,12 @@ export class FuzzySelectModal extends FuzzySuggestModal<{ name: string; gid: str
 
   onChooseItem(item: { name: string; gid: string }, evt: MouseEvent | KeyboardEvent) {
     if (!this.resolved) {
-      console.log(`ITEM CHOSEN - ${item.name} (gid: ${item.gid})`);
+      // console.log(`ITEM CHOSEN - ${item.name} (gid: ${item.gid})`);
       this.selectedItem = item;
       this.resolved = true; // Prevents multiple selections
       this.resolve(item);
     } else {
-      console.warn(`ITEM CHOSEN MULTIPLE TIMES - Ignoring extra selection: ${item.name}`);
+      // console.warn(`ITEM CHOSEN MULTIPLE TIMES - Ignoring extra selection: ${item.name}`);
     }
   }
 }
