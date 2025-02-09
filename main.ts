@@ -10,26 +10,27 @@ import {
   TextComponent, 
   ToggleComponent 
 } from 'obsidian';
+import { AsanaPluginSettings, DEFAULT_SETTINGS, AsanaSettingTab } from './settings/settings';
 
-/**
- * Interface for plugin settings.
- */
-interface AsanaPluginSettings {
-  asanaToken: string;
-  markTaskAsCompleted: boolean;
-  pinnedProjects: string[]; // Array of project IDs or names
-  enableMarkdownLink: boolean;
-}
+// /**
+//  * Interface for plugin settings.
+//  */
+// interface AsanaPluginSettings {
+//   asanaToken: string;
+//   markTaskAsCompleted: boolean;
+//   pinnedProjects: string[]; // Array of project IDs or names
+//   enableMarkdownLink: boolean;
+// }
 
-/**
- * Default settings for the plugin.
- */
-const DEFAULT_SETTINGS: AsanaPluginSettings = {
-  asanaToken: '',
-  markTaskAsCompleted: false,
-  pinnedProjects: [],
-  enableMarkdownLink: true,
-};
+// /**
+//  * Default settings for the plugin.
+//  */
+// const DEFAULT_SETTINGS: AsanaPluginSettings = {
+//   asanaToken: '',
+//   markTaskAsCompleted: false,
+//   pinnedProjects: [],
+//   enableMarkdownLink: true,
+// };
 
 /**
  * Main plugin class.
@@ -429,7 +430,7 @@ class FuzzySelectModal extends FuzzySuggestModal<{ name: string; gid: string; is
     super.onOpen();
     this.setTitle('herer is the titme');
     this.setPlaceholder(this.title);
-    this.setInstructions('here is the instruction');
+    // this.setInstructions('here is the instruction');
   }
 
   getItems(): Array<{ name: string; gid: string; isPinned?: boolean }> {
@@ -450,77 +451,5 @@ class FuzzySelectModal extends FuzzySuggestModal<{ name: string; gid: string; is
     } else {
       console.warn(`ITEM CHOSEN MULTIPLE TIMES - Ignoring extra selection: ${item.name}`);
     }
-  }
-}
-
-/**
- * Plugin settings tab.
- */
-class AsanaSettingTab extends PluginSettingTab {
-  plugin: AsanaPlugin;
-
-  constructor(app: App, plugin: AsanaPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    const { containerEl } = this;
-
-    containerEl.empty();
-
-    containerEl.createEl('h2', { text: 'Asana Task Creator Settings' });
-
-    // Asana Personal Access Token Setting
-    new Setting(containerEl)
-      .setName('Asana Personal Access Token')
-      .setDesc(
-        'Enter your Asana Personal Access Token. You can create one in your Asana account settings.'
-      )
-      .addText((text: TextComponent) => {
-        text.setPlaceholder('Enter your token') // Correct usage of TextComponent
-          .setValue(this.plugin.settings.asanaToken)
-          .onChange(async (value: string) => { // Explicitly type `value`
-            this.plugin.settings.asanaToken = value.trim();
-            await this.plugin.saveSettings();
-          });
-      });
-
-    // Mark Task as Completed Setting
-    new Setting(containerEl)
-      .setName('Mark Task as Completed')
-      .setDesc('Automatically mark the task as completed in Obsidian after creating it in Asana.')
-      .addToggle((toggle: ToggleComponent) => {
-        toggle.setValue(this.plugin.settings.markTaskAsCompleted)
-          .onChange(async (value: boolean) => { // Explicitly type `value`
-            this.plugin.settings.markTaskAsCompleted = value;
-            await this.plugin.saveSettings();
-          });
-      });
-
-    new Setting(containerEl)
-      .setName('Enable Markdown Link')
-      .setDesc('Insert a markdown link to the task record in the note after task creation.')
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.enableMarkdownLink).onChange(async (value) => {
-          this.plugin.settings.enableMarkdownLink = value;
-          await this.plugin.saveSettings();
-        })
-      );
-
-    // Add pinned projects
-    new Setting(containerEl)
-      .setName('Pinned Projects')
-      .setDesc('Enter project names or IDs to pin them in the project selection modal.')
-      .addTextArea((textArea) =>
-        textArea
-          .setPlaceholder('Enter project names/IDs, one per line')
-          .setValue(this.plugin.settings.pinnedProjects.join('\n'))
-          .onChange(async (value: string) => {
-            this.plugin.settings.pinnedProjects = value.split('\n').map((item) => item.trim());
-            await this.plugin.saveSettings();
-          })
-      );
-
   }
 }
