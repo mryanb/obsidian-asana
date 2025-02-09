@@ -11,6 +11,7 @@ import {
   ToggleComponent 
 } from 'obsidian';
 import { AsanaPluginSettings, DEFAULT_SETTINGS, AsanaSettingTab } from './settings/settings';
+import { fetchAsanaWorkspaces, fetchAsanaProjects, fetchAsanaSections, createTaskInAsana } from './api/asanaApi';
 
 /**
  * Main plugin class.
@@ -82,7 +83,6 @@ export default class AsanaPlugin extends Plugin {
 
     // Use current line if no selected text
     if (!selectedText) {
-      console.log('No selected text, using the current line');
       const cursor = editor.getCursor();
       selectedText = editor.getLine(cursor.line);
     }
@@ -128,11 +128,12 @@ export default class AsanaPlugin extends Plugin {
 
     // Create the task in Asana
     try {
-      const response = await this.createTaskInAsana(
+      const response = await createTaskInAsana(
         selectedText,
         workspaceGid,
         projectGid,
-        sectionGid
+        sectionGid,
+        this.settings
       );
 
       // Update the editor with the Asana task link
@@ -164,37 +165,22 @@ export default class AsanaPlugin extends Plugin {
     }
 
     try {
-      // Fetch workspaces
-      const workspacesResponse = await requestUrl({
-        url: 'https://app.asana.com/api/1.0/workspaces',
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const workspaces = workspacesResponse.json.data;
+      // Fetch workspaces using the refactored function
+      const workspaces = await fetchAsanaWorkspaces(this.settings);
 
       // Prompt for workspace selection
       const workspace = await this.promptForSelection(
         'Select Workspace',
         workspaces.map((ws: any) => ({ name: ws.name, gid: ws.gid }))
       );
-      // if (!workspace) return null;
+      
       if (!workspace) {
         new Notice('Workspace selection was canceled.');
         return null;
       }
 
-      // Fetch projects in the workspace
-      const projectsResponse = await requestUrl({
-        url: `https://app.asana.com/api/1.0/workspaces/${workspace.gid}/projects?is_archived=false`,
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const projects = projectsResponse.json.data;
+      // Fetch projects using the refactored function
+      const projects = await fetchAsanaProjects(workspace.gid, this.settings);
 
       const projectOptions = projects.map((p: any) => ({ name: p.name, gid: p.gid }));
 
@@ -205,16 +191,8 @@ export default class AsanaPlugin extends Plugin {
         return null;
       }
 
-      // Fetch sections in the selected project,
-      const sectionsResponse = await requestUrl({
-        url: `https://app.asana.com/api/1.0/projects/${project.gid}/sections`,
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const sections = sectionsResponse.json.data;
+      // Fetch sections using the refactored function
+      const sections = await fetchAsanaSections(project.gid, this.settings);
 
       // Check the number of sections
       let selectedSection: { name: string; gid: string } | null = null;
@@ -273,71 +251,6 @@ export default class AsanaPlugin extends Plugin {
       });
       modal.open();
     });
-  }
-
-  /**
-   * Creates a task in Asana using the API.
-   * @param taskName The name of the task to create.
-   * @param workspaceGid The workspace GID.
-   * @param projectGid The project GID.
-   * @param sectionGid The section GID.
-   * @returns The response data from the API.
-   */
-  async createTaskInAsana(
-    taskName: string,
-    workspaceGid: string,
-    projectGid: string,
-    sectionGid: string
-  ) {
-    const token = this.settings.asanaToken;
-
-    const response = await requestUrl({
-      url: 'https://app.asana.com/api/1.0/tasks',
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: {
-          name: taskName,
-          projects: [projectGid],
-          workspace: workspaceGid,
-        },
-      }),
-    });
-
-    if (response.status >= 200 && response.status < 300) {
-      const taskGid = response.json.data.gid;
-
-      // Move task to the selected section
-      await requestUrl({
-        url: `https://app.asana.com/api/1.0/sections/${sectionGid}/addTask`,
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: {
-            task: taskGid,
-          },
-        }),
-      });
-
-      // Fetch the task details to get the permalink_url
-      const taskResponse = await requestUrl({
-        url: `https://app.asana.com/api/1.0/tasks/${taskGid}`,
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return taskResponse.json.data;
-    } else {
-      throw new Error(response.text);
-    }
   }
 
   /**
