@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, TextComponent, ToggleComponent } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, TextComponent, ToggleComponent } from 'obsidian';
 import AsanaPlugin from '../main';
 
 /**

@@ -1,6 +1,9 @@
 import { requestUrl } from 'obsidian';
 import { AsanaPluginSettings } from '../settings/settings';
 
+// Asana API Base URL
+const ASANA_API_BASE_URL = 'https://app.asana.com/api/1.0';
+
 /**
  * Fetches a list of workspaces from Asana.
  * @param settings - The plugin settings containing the Asana API token.
@@ -11,7 +14,7 @@ export async function fetchAsanaWorkspaces(settings: AsanaPluginSettings) {
 
   try {
     const response = await requestUrl({
-      url: 'https://app.asana.com/api/1.0/workspaces',
+      url: `${ASANA_API_BASE_URL}/workspaces`,
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -43,7 +46,7 @@ export async function fetchAsanaProjects(
 
   try {
     const response = await requestUrl({
-      url: `https://app.asana.com/api/1.0/workspaces/${workspaceGid}/projects?is_archived=false`,
+      url: `${ASANA_API_BASE_URL}/workspaces/${workspaceGid}/projects?is_archived=false`,
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -75,7 +78,7 @@ export async function fetchAsanaSections(
 
   try {
     const response = await requestUrl({
-      url: `https://app.asana.com/api/1.0/projects/${projectGid}/sections`,
+      url: `${ASANA_API_BASE_URL}/projects/${projectGid}/sections`,
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -114,7 +117,7 @@ export async function createTaskInAsana(
   try {
     // Create task in Asana
     const response = await requestUrl({
-      url: 'https://app.asana.com/api/1.0/tasks',
+      url: `${ASANA_API_BASE_URL}/tasks`,
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -135,7 +138,7 @@ export async function createTaskInAsana(
       // Move task to the selected section (if provided)
       if (sectionGid) {
         await requestUrl({
-          url: `https://app.asana.com/api/1.0/sections/${sectionGid}/addTask`,
+          url: `${ASANA_API_BASE_URL}/sections/${sectionGid}/addTask`,
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -151,7 +154,7 @@ export async function createTaskInAsana(
 
       // Fetch task details to get `permalink_url`
       const taskResponse = await requestUrl({
-        url: `https://app.asana.com/api/1.0/tasks/${taskGid}`,
+        url: `${ASANA_API_BASE_URL}/tasks/${taskGid}`,
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

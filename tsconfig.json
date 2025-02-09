@@ -6,13 +6,18 @@
     "module": "ESNext",
     "target": "ES6",
     "allowJs": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "moduleResolution": "node",
     "importHelpers": true,
     "isolatedModules": true,
-    "strictNullChecks": true,
-    "lib": ["DOM", "ES2016"],
-    "types": ["obsidian"]
+    "esModuleInterop": true,
+    "lib": ["DOM", "ES5", "ES6", "ES7"],
+    "paths": {
+      "@settings/*": ["src/settings/*"],
+      "@ui/*": ["src/ui/*"],
+      "@api/*": ["src/api/*"],
+      "@src/*": ["src/*"]
+    }
   },
   "include": ["**/*.ts"]
 }

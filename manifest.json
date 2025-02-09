@@ -1,10 +1,11 @@
 {
-  "id": "asana-task-creator",
-  "name": "Asana Task Creator",
+  "id": "asana-for-obsidian",
+  "name": "Asana for Obsidian",
   "version": "1.0.0",
-  "minAppVersion": "0.12.0",
-  "description": "Create Asana tasks from highlighted text or current line in Obsidian.",
-  "author": "Your Name",
-  "authorUrl": "https://yourwebsite.com",
+  "description": "Create Asana tasks from highlighted text or the current line in Obsidian.",
+  "author": "Ryan Bantz",
+  "authorUrl": "https://ryanbantz.com",
+  "fundingUrl": "https://www.buymeacoffee.com/ryanbantz",
+  "helpUrl": "https://github.com/mryanb/obsidian-asana",
   "isDesktopOnly": false
 }

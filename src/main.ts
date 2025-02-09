@@ -1,7 +1,7 @@
 import { 
   App, 
   FuzzySuggestModal, 
-  Notice, 
+  Notice,
   Plugin, 
   PluginSettingTab, 
   Setting, 
