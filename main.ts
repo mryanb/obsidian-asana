@@ -12,6 +12,7 @@ import {
 } from 'obsidian';
 import { AsanaPluginSettings, DEFAULT_SETTINGS, AsanaSettingTab } from './settings/settings';
 import { fetchAsanaWorkspaces, fetchAsanaProjects, fetchAsanaSections, createTaskInAsana } from './api/asanaApi';
+import { FuzzySelectModal } from './ui/FuzzySelectModal';
 
 /**
  * Main plugin class.
@@ -182,8 +183,22 @@ export default class AsanaPlugin extends Plugin {
       // Fetch projects using the refactored function
       const projects = await fetchAsanaProjects(workspace.gid, this.settings);
 
-      const projectOptions = projects.map((p: any) => ({ name: p.name, gid: p.gid }));
+      // Ensure pinned projects are sorted to the top
+      const pinnedProjectIds = new Set(this.settings.pinnedProjects);
 
+      // Separate pinned and non-pinned projects
+      const pinnedProjects = projects
+        .filter((p: any) => pinnedProjectIds.has(p.gid) || pinnedProjectIds.has(p.name))
+        .map((p: any) => ({ name: p.name, gid: p.gid, isPinned: true }));
+
+      const otherProjects = projects
+        .filter((p: any) => !pinnedProjectIds.has(p.gid) && !pinnedProjectIds.has(p.name))
+        .map((p: any) => ({ name: p.name, gid: p.gid, isPinned: false }));
+
+      // Combine pinned projects first, followed by the rest
+      const projectOptions = [...pinnedProjects, ...otherProjects];
+
+      // Prompt for project selection
       const project = await this.promptForSelection('Select Project', projectOptions);
 
       if (!project) {
@@ -291,55 +306,5 @@ export default class AsanaPlugin extends Plugin {
     const lineText = editor.getLine(cursor.line);
     const completedLine = lineText.replace('- [ ]', '- [x]');
     editor.setLine(cursor.line, completedLine);
-  }
-}
-
-/**
- * Modal for selection prompts.
- */
-class FuzzySelectModal extends FuzzySuggestModal<{ name: string; gid: string; isPinned?: boolean }> {
-  private resolve: (value: { name: string; gid: string } | null) => void;
-  private items: Array<{ name: string; gid: string; isPinned?: boolean }>;
-  private title: string;
-  private selectedItem: { name: string; gid: string } | null = null;
-  private resolved: boolean = false; // Tracks if resolve has been handled
-
-  constructor(
-    app: App,
-    title: string,
-    items: Array<{ name: string; gid: string; isPinned?: boolean }>,
-    resolve: (value: { name: string; gid: string } | null) => void
-  ) {
-    super(app);
-    this.title = title;
-    this.items = items;
-    this.resolve = resolve;
-  }
-
-  onOpen() {
-    super.onOpen();
-    this.setTitle('herer is the titme');
-    this.setPlaceholder(this.title);
-    // this.setInstructions('here is the instruction');
-  }
-
-  getItems(): Array<{ name: string; gid: string; isPinned?: boolean }> {
-    return this.items;
-  }
-
-  getItemText(item: { name: string; gid: string; isPinned?: boolean }): string {
-    return item.isPinned ? `📌 ${item.name}` : item.name;
-  }
-
-  // Should this be async or not?
-  onChooseItem(item: { name: string; gid: string }, evt: MouseEvent | KeyboardEvent) {
-    if (!this.resolved) {
-      console.log(`ITEM CHOSEN - ${item.name} (gid: ${item.gid})`);
-      this.selectedItem = item;
-      this.resolved = true; // Mark as resolved
-      this.resolve(item); // Resolve with the selected item
-    } else {
-      console.warn(`ITEM CHOSEN MULTIPLE TIMES - Ignoring extra selection: ${item.name}`);
-    }
   }
 }
