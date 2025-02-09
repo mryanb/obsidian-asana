@@ -38,27 +38,43 @@ export class AsanaSettingTab extends PluginSettingTab {
 
     containerEl.createEl('h2', { text: 'Asana Task Creator Settings' });
 
-    // Personal Access Token Setting
-    const patDesc = document.createDocumentFragment();
-    patDesc.append(
-      "Enter your Asana Personal Access Token. You can create one in the ",
-      patDesc.createEl("a", {
-        href: "https://app.asana.com/0/my-apps",
-        text: "Asana My Apps",
-      }),
-      " section."
-    );
+    new Setting(containerEl)
+      .setName('Status Check')
+      .setDesc('check whether API key is saved. It does not guarantee that the API key is valid or invalid.')
+      .addButton(button => {
+        button.setButtonText('API Check').onClick(async () => {
+          if (this.plugin.settings.asanaToken.length) {
+            new Notice('API key exist.');
+          } else {
+            new Notice('API key does not exist.');
+          }
+        });
+      });
 
+    // Personal Access Token Setting (Secure Input)
+    const patDesc = document.createDocumentFragment();
+    patDesc.createDiv({ text: 'Enter your Asana Personal Access Token.' });
+    patDesc.createDiv({
+      text: 'For security reasons, the saved API key is not shown in the input field after saving.',
+    });
+
+    let tempKeyValue = '';
     new Setting(containerEl)
       .setName('Asana Personal Access Token')
       .setDesc(patDesc)
       .addText((text: TextComponent) => {
-        text.setPlaceholder('Enter your token')
-          .setValue(this.plugin.settings.asanaToken)
-          .onChange(async (value: string) => {
-            this.plugin.settings.asanaToken = value.trim();
-            await this.plugin.saveSettings();
-          });
+        text.inputEl.type = 'password'; // Hide input value
+        text.setValue('').onChange(async (value) => {
+          tempKeyValue = value; // Store temporarily until saved
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText('Save Key').onClick(async () => {
+          this.plugin.settings.asanaToken = tempKeyValue.trim();
+          await this.plugin.saveSettings();
+          new Notice('Asana API Key Saved');
+          tempKeyValue = ''; // Clear stored value
+        });
       });
 
     // Toggle: Mark Task as Completed
