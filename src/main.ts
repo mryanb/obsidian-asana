@@ -27,7 +27,7 @@ export default class AsanaPlugin extends Plugin {
     // Add command to the command palette
     this.addCommand({
       id: 'create-asana-task',
-      name: 'Create Asana Task',
+      name: 'Create task',
       editorCallback: (editor: Editor) => this.createAsanaTask(editor),
     });
 

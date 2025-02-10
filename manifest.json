@@ -1,7 +1,7 @@
 {
   "id": "asana",
   "name": "Asana",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Create Asana tasks from highlighted text or the current line in Obsidian.",
   "minAppVersion": "1.5.0",
   "author": "Ryan Bantz",
