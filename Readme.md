@@ -1,5 +1,6 @@
 # Asana for Obsidian
 Asana for Obsidan is a plugin that creates tasks with in Asana from the current line or selected text within Obsidian.
+![2025-02-09_12-50-42 (1)](https://github.com/user-attachments/assets/469faaa3-a9fb-4437-9a9f-8b58c52f5dc3)
 
 ## Installation
 This plugin isn't published yet so there are 2 ways you can install this plugin and test.
