@@ -36,10 +36,8 @@ export class AsanaSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'General Settings' });
-
     new Setting(containerEl)
-      .setName('Status Check')
+      .setName('Status check')
       .setDesc('check whether API key is saved. It does not guarantee that the API key is valid or invalid.')
       .addButton(button => {
         button.setButtonText('API Check').onClick(async () => {
@@ -53,7 +51,7 @@ export class AsanaSettingTab extends PluginSettingTab {
 
     // Personal Access Token Setting (Secure Input)
     const patDesc = document.createDocumentFragment();
-    patDesc.createDiv({ text: 'Enter your Asana Personal Access Token.' });
+    patDesc.createDiv({ text: 'Enter your Asana personal access token.' });
     patDesc.createDiv({
       text: 'For security reasons, the saved API key is not shown in the input field after saving.',
     });
@@ -64,7 +62,7 @@ export class AsanaSettingTab extends PluginSettingTab {
 
     let tempKeyValue = '';
     new Setting(containerEl)
-      .setName('Asana Personal Access Token')
+      .setName('Asana personal access token')
       .setDesc(patDesc)
       .addText((text: TextComponent) => {
         text.inputEl.type = 'password'; // Hide input value
@@ -73,17 +71,17 @@ export class AsanaSettingTab extends PluginSettingTab {
         });
       })
       .addButton((button) => {
-        button.setButtonText('Save Key').onClick(async () => {
+        button.setButtonText('Save key').onClick(async () => {
           this.plugin.settings.asanaToken = tempKeyValue.trim();
           await this.plugin.saveSettings();
-          new Notice('Asana API Key Saved');
+          new Notice('Asana API key saved');
           tempKeyValue = ''; // Clear stored value
         });
       });
 
     // Toggle: Mark Task as Completed
     new Setting(containerEl)
-      .setName('Mark Task as Completed')
+      .setName('Mark task as completed')
       .setDesc('Automatically mark the task as completed in Obsidian after creating it in Asana.')
       .addToggle((toggle: ToggleComponent) => {
         toggle.setValue(this.plugin.settings.markTaskAsCompleted)
@@ -95,7 +93,7 @@ export class AsanaSettingTab extends PluginSettingTab {
 
     // Toggle: Enable Markdown Link
     new Setting(containerEl)
-      .setName('Enable Markdown Link')
+      .setName('Enable markdown link')
       .setDesc('Insert a markdown link to the task in the note after task creation.')
       .addToggle((toggle: ToggleComponent) => {
         toggle.setValue(this.plugin.settings.enableMarkdownLink)
@@ -107,7 +105,7 @@ export class AsanaSettingTab extends PluginSettingTab {
 
     // Pinned Projects Input (Scalable TextArea)
     new Setting(containerEl)
-      .setName('Pinned Projects')
+      .setName('Pinned projects')
       .setDesc('Enter project names or IDs to pin them in the project selection modal.')
       .addTextArea((textArea) => {
         textArea.inputEl.setAttribute('style', 'min-height: 100px; max-height: 300px; width: 100%; overflow-y: auto; resize: vertical;');

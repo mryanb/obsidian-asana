@@ -38,7 +38,7 @@ export default class AsanaPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor) => {
         menu.addItem((item) => {
-          item.setTitle('Create Asana Task')
+          item.setTitle('Create Asana task')
             .setIcon('checkmark')
             .onClick(() => this.createAsanaTask(editor));
         });
@@ -168,7 +168,7 @@ export default class AsanaPlugin extends Plugin {
 
       // Prompt for workspace selection
       const workspace = await this.promptForSelection(
-        'Select Workspace',
+        'Select workspace',
         workspaces.map((ws: any) => ({ name: ws.name, gid: ws.gid }))
       );
       
@@ -196,7 +196,7 @@ export default class AsanaPlugin extends Plugin {
       const projectOptions = [...pinnedProjects, ...otherProjects];
 
       // Prompt for project selection
-      const project = await this.promptForSelection('Select Project', projectOptions);
+      const project = await this.promptForSelection('Select project', projectOptions);
 
       if (!project) {
         new Notice('Project selection was canceled.');
@@ -212,7 +212,7 @@ export default class AsanaPlugin extends Plugin {
       if (sections.length > 1) {
         // Prompt user to select a section
         selectedSection = await this.promptForSelection(
-          'Select Section',
+          'Select section',
           sections.map((section: any) => ({ name: section.name, gid: section.gid }))
         );
 
