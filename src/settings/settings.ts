@@ -130,5 +130,14 @@ export class AsanaSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    // Feedback Section
+    const feedbackDesc = document.createDocumentFragment();
+    const feedbackDiv = feedbackDesc.createDiv();
+    feedbackDiv.innerHTML = 'Got a bug, feature request, or success story? <a href="http://ryanbantz.com/feedback/asana-for-obsidian">Share your feedback</a>.  📢📢📢';
+
+    new Setting(containerEl)
+      .setName('Feedback')
+      .setDesc(feedbackDesc);
   }
 }
