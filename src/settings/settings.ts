@@ -9,6 +9,7 @@ export interface AsanaPluginSettings {
   markTaskAsCompleted: boolean;
   pinnedProjects: string[];
   enableMarkdownLink: boolean;
+  showArchivedProjects: boolean;
 }
 
 /**
@@ -19,6 +20,7 @@ export const DEFAULT_SETTINGS: AsanaPluginSettings = {
   markTaskAsCompleted: false,
   pinnedProjects: [],
   enableMarkdownLink: true,
+  showArchivedProjects: false,
 };
 
 /**
@@ -99,6 +101,18 @@ export class AsanaSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.enableMarkdownLink)
           .onChange(async (value: boolean) => {
             this.plugin.settings.enableMarkdownLink = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    // Toggle: Show Archived Projects
+    new Setting(containerEl)
+      .setName('Show archived projects')
+      .setDesc('Include archived projects in the project selection modal.')
+      .addToggle((toggle: ToggleComponent) => {
+        toggle.setValue(this.plugin.settings.showArchivedProjects)
+          .onChange(async (value: boolean) => {
+            this.plugin.settings.showArchivedProjects = value;
             await this.plugin.saveSettings();
           });
       });

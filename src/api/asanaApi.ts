@@ -46,7 +46,7 @@ export async function fetchAsanaProjects(
 
   try {
     const response = await requestUrl({
-      url: `${ASANA_API_BASE_URL}/workspaces/${workspaceGid}/projects?is_archived=false`,
+      url: `${ASANA_API_BASE_URL}/workspaces/${workspaceGid}/projects${settings.showArchivedProjects ? '' : '?is_archived=false'}`,
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
