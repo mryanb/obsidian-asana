@@ -1,6 +1,6 @@
 {
   "name": "obsidian-asana",
-  "version": "0.1.0",
+  "version": "0.1.8",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
