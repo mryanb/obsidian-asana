@@ -11,8 +11,21 @@ import {
   ToggleComponent 
 } from 'obsidian';
 import { AsanaPluginSettings, DEFAULT_SETTINGS, AsanaSettingTab } from './settings/settings';
-import { fetchAsanaWorkspaces, fetchAsanaProjects, fetchAsanaSections, createTaskInAsana } from './api/asanaApi';
+import { 
+  fetchAsanaWorkspaces, 
+  fetchAsanaProjects, 
+  fetchAsanaSections, 
+  createTaskInAsana, 
+  fetchAsanaUser,
+  fetchUserTaskListGid
+} from './api/asanaApi';
 import { FuzzySelectModal } from './ui/FuzzySelectModal';
+
+interface Project {
+  name: string;
+  gid: string;
+  isMyTasks?: boolean;
+}
 
 /**
  * Main plugin class.
@@ -163,8 +176,11 @@ export default class AsanaPlugin extends Plugin {
     }
 
     try {
-      // Fetch workspaces using the refactored function
-      const workspaces = await fetchAsanaWorkspaces(this.settings);
+      // Fetch workspaces and user data in parallel
+      const [workspaces, userData] = await Promise.all([
+        fetchAsanaWorkspaces(this.settings),
+        fetchAsanaUser(this.settings)
+      ]);
 
       // Prompt for workspace selection
       const workspace = await this.promptForSelection(
@@ -183,6 +199,9 @@ export default class AsanaPlugin extends Plugin {
       // Ensure pinned projects are sorted to the top
       const pinnedProjectIds = new Set(this.settings.pinnedProjects);
 
+      // Add "My Tasks" as a special project option
+      const myTasksProject = { name: "My Tasks", gid: userData.gid, isPinned: true, isMyTasks: true };
+
       // Separate pinned and non-pinned projects
       const pinnedProjects = projects
         .filter((p: any) => pinnedProjectIds.has(p.gid) || pinnedProjectIds.has(p.name))
@@ -192,8 +211,8 @@ export default class AsanaPlugin extends Plugin {
         .filter((p: any) => !pinnedProjectIds.has(p.gid) && !pinnedProjectIds.has(p.name))
         .map((p: any) => ({ name: p.name, gid: p.gid, isPinned: false }));
 
-      // Combine pinned projects first, followed by the rest
-      const projectOptions = [...pinnedProjects, ...otherProjects];
+      // Combine My Tasks, pinned projects, and other projects
+      const projectOptions = [myTasksProject, ...pinnedProjects, ...otherProjects];
 
       // Prompt for project selection
       const project = await this.promptForSelection('Select project', projectOptions);
@@ -203,12 +222,19 @@ export default class AsanaPlugin extends Plugin {
         return null;
       }
 
-      // Fetch sections using the refactored function
-      const sections = await fetchAsanaSections(project.gid, this.settings);
-
-      // Check the number of sections
+      let sections;
       let selectedSection: { name: string; gid: string } | null = null;
 
+      // Fetch sections based on whether this is My Tasks or a regular project
+      const projectWithType = project as Project;
+      if (projectWithType.isMyTasks) {
+        const taskListGid = await fetchUserTaskListGid(workspace.gid, this.settings);
+        sections = await fetchAsanaSections(taskListGid, this.settings);
+      } else {
+        sections = await fetchAsanaSections(projectWithType.gid, this.settings);
+      }
+
+      // Check the number of sections
       if (sections.length > 1) {
         // Prompt user to select a section
         selectedSection = await this.promptForSelection(
@@ -225,14 +251,14 @@ export default class AsanaPlugin extends Plugin {
         selectedSection = { name: sections[0].name, gid: sections[0].gid };
       } else {
         // No sections available, skip the section selection
-        new Notice('No sections found in this project. Skipping section selection.');
+        new Notice('No sections found. Skipping section selection.');
       }
 
       return {
         workspaceGid: workspace.gid,
-        projectGid: project.gid,
+        projectGid: projectWithType.isMyTasks ? '' : projectWithType.gid,
         sectionGid: selectedSection ? selectedSection.gid : '',
-        projectName: project.name,
+        projectName: projectWithType.name,
         sectionName: selectedSection ? selectedSection.name : '',
       };
     } catch (error) {
