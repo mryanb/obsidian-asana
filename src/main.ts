@@ -200,7 +200,12 @@ export default class AsanaPlugin extends Plugin {
       const pinnedProjectIds = new Set(this.settings.pinnedProjects);
 
       // Add "My Tasks" as a special project option
-      const myTasksProject = { name: "My Tasks", gid: userData.gid, isPinned: true, isMyTasks: true };
+      const myTasksProject = { 
+        name: "My Tasks", 
+        gid: userData.gid, 
+        isPinned: this.settings.pinMyTasks, 
+        isMyTasks: true 
+      };
 
       // Separate pinned and non-pinned projects
       const pinnedProjects = projects
@@ -211,8 +216,10 @@ export default class AsanaPlugin extends Plugin {
         .filter((p: any) => !pinnedProjectIds.has(p.gid) && !pinnedProjectIds.has(p.name))
         .map((p: any) => ({ name: p.name, gid: p.gid, isPinned: false }));
 
-      // Combine My Tasks, pinned projects, and other projects
-      const projectOptions = [myTasksProject, ...pinnedProjects, ...otherProjects];
+      // Combine My Tasks (if pinned), pinned projects, and other projects
+      const projectOptions = this.settings.pinMyTasks 
+        ? [myTasksProject, ...pinnedProjects, ...otherProjects]
+        : [...pinnedProjects, myTasksProject, ...otherProjects];
 
       // Prompt for project selection
       const project = await this.promptForSelection('Select project', projectOptions);

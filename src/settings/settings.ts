@@ -10,6 +10,7 @@ export interface AsanaPluginSettings {
   pinnedProjects: string[];
   enableMarkdownLink: boolean;
   showArchivedProjects: boolean;
+  pinMyTasks: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: AsanaPluginSettings = {
   pinnedProjects: [],
   enableMarkdownLink: true,
   showArchivedProjects: false,
+  pinMyTasks: true,
 };
 
 /**
@@ -101,6 +103,18 @@ export class AsanaSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.enableMarkdownLink)
           .onChange(async (value: boolean) => {
             this.plugin.settings.enableMarkdownLink = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    // Toggle: Pin My Tasks
+    new Setting(containerEl)
+      .setName('Pin My Tasks')
+      .setDesc('Always show My Tasks at the top of the project selector.')
+      .addToggle((toggle: ToggleComponent) => {
+        toggle.setValue(this.plugin.settings.pinMyTasks)
+          .onChange(async (value: boolean) => {
+            this.plugin.settings.pinMyTasks = value;
             await this.plugin.saveSettings();
           });
       });
