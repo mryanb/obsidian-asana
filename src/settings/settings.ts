@@ -11,6 +11,13 @@ export interface AsanaPluginSettings {
   enableMarkdownLink: boolean;
   showArchivedProjects: boolean;
   pinMyTasks: boolean;
+  defaultWorkspaceGid: string;
+  defaultWorkspaceName: string;
+  defaultProjectGid: string;
+  defaultProjectName: string;
+  defaultProjectIsMyTasks: boolean;
+  defaultSectionGid: string;
+  defaultSectionName: string;
 }
 
 /**
@@ -23,6 +30,13 @@ export const DEFAULT_SETTINGS: AsanaPluginSettings = {
   enableMarkdownLink: true,
   showArchivedProjects: false,
   pinMyTasks: true,
+  defaultWorkspaceGid: '',
+  defaultWorkspaceName: '',
+  defaultProjectGid: '',
+  defaultProjectName: '',
+  defaultProjectIsMyTasks: false,
+  defaultSectionGid: '',
+  defaultSectionName: '',
 };
 
 /**
@@ -144,6 +158,39 @@ export class AsanaSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    // Default task destination
+    const hasDefaults = !!this.plugin.settings.defaultWorkspaceGid;
+    const defaultDesc = document.createDocumentFragment();
+    if (hasDefaults) {
+      const { defaultWorkspaceName, defaultProjectName, defaultProjectIsMyTasks, defaultSectionName } = this.plugin.settings;
+      const projectLabel = defaultProjectIsMyTasks ? 'My Tasks' : defaultProjectName;
+      defaultDesc.createDiv({ text: `Workspace: ${defaultWorkspaceName}` });
+      defaultDesc.createDiv({ text: `Project: ${projectLabel}` });
+      if (defaultSectionName) defaultDesc.createDiv({ text: `Section: ${defaultSectionName}` });
+    } else {
+      defaultDesc.createDiv({ text: 'No default set. Run "Asana: Create Default Task" to set one.' });
+    }
+
+    const defaultSetting = new Setting(containerEl)
+      .setName('Default task destination')
+      .setDesc(defaultDesc);
+
+    if (hasDefaults) {
+      defaultSetting.addButton(button => {
+        button.setButtonText('Clear').setWarning().onClick(async () => {
+          this.plugin.settings.defaultWorkspaceGid = '';
+          this.plugin.settings.defaultWorkspaceName = '';
+          this.plugin.settings.defaultProjectGid = '';
+          this.plugin.settings.defaultProjectName = '';
+          this.plugin.settings.defaultProjectIsMyTasks = false;
+          this.plugin.settings.defaultSectionGid = '';
+          this.plugin.settings.defaultSectionName = '';
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+    }
 
     // Feedback Section
     const feedbackDesc = document.createDocumentFragment();

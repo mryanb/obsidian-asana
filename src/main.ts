@@ -37,11 +37,16 @@ export default class AsanaPlugin extends Plugin {
     // Load settings
     await this.loadSettings();
 
-    // Add command to the command palette
     this.addCommand({
-      id: 'create-asana-task',
-      name: 'Create task',
-      editorCallback: (editor: Editor) => this.createAsanaTask(editor),
+      id: 'create-asana-task-default',
+      name: 'Create default task',
+      editorCallback: (editor: Editor) => this.createAsanaTask(editor, false),
+    });
+
+    this.addCommand({
+      id: 'create-asana-task-custom',
+      name: 'Create custom task',
+      editorCallback: (editor: Editor) => this.createAsanaTask(editor, true),
     });
 
     // Add settings tab
@@ -51,9 +56,14 @@ export default class AsanaPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('editor-menu', (menu, editor) => {
         menu.addItem((item) => {
-          item.setTitle('Create Asana task')
+          item.setTitle('Create Asana task (default)')
             .setIcon('checkmark')
-            .onClick(() => this.createAsanaTask(editor));
+            .onClick(() => this.createAsanaTask(editor, false));
+        });
+        menu.addItem((item) => {
+          item.setTitle('Create Asana task (custom)')
+            .setIcon('checkmark')
+            .onClick(() => this.createAsanaTask(editor, true));
         });
       })
     );
@@ -87,52 +97,34 @@ export default class AsanaPlugin extends Plugin {
   /**
    * Main function to create an Asana task.
    * @param editor The current editor instance.
+   * @param forcePrompt When true, always prompt even if defaults are saved.
    */
-  async createAsanaTask(editor: Editor) {
-    // Get the selected text or the current line
+  async createAsanaTask(editor: Editor, forcePrompt: boolean) {
     let selectedText = editor.getSelection();
 
-    // Use current line if no selected text
     if (!selectedText) {
       const cursor = editor.getCursor();
       selectedText = editor.getLine(cursor.line);
     }
 
-    // Remove leading whitespace, then any list markers and checkboxes
     selectedText = selectedText
       .replace(/^\s*(?:[-*]\s*)?(?:\[[ xX]\]\s*)?/, '')
       .trim();
 
-    // Extract indented lines for the description
-    // @TODO - Find a good way to handle descriptions
-    // const cursor = editor.getCursor();
-    // const lines = editor.getValue().split('\n'); // All lines in the editor
-    // const taskLine = cursor.line;
-    // let description = '';
+    const hasDefaults = !!this.settings.defaultWorkspaceGid;
+    let taskDetails;
 
-    // // Collect subsequent indented lines
-    // for (let i = taskLine + 1; i < lines.length; i++) {
-    //   const line = lines[i];
-    //   if (/^\s+[-*]/.test(line)) {
-    //     // Indented list item, add to description
-    //     description += line.trim() + '\n';
-    //   } else if (line.trim() === '') {
-    //     // Empty line, continue looking for more indented lines
-    //     continue;
-    //   } else {
-    //     // No longer an indented line, stop processing
-    //     break;
-    //   }
-    // }
-
-    // description = description.trim(); // Remove any trailing whitespace
-
-    // console.log(`Description: ${description}`);
-
-    // Prompt the user to select workspace, project, and section
-    const taskDetails = await this.promptForTaskDetails();
-    if (!taskDetails) {
-      return;
+    if (!forcePrompt && hasDefaults) {
+      taskDetails = {
+        workspaceGid: this.settings.defaultWorkspaceGid,
+        projectGid: this.settings.defaultProjectGid,
+        sectionGid: this.settings.defaultSectionGid,
+        projectName: this.settings.defaultProjectIsMyTasks ? 'My Tasks' : this.settings.defaultProjectName,
+        sectionName: this.settings.defaultSectionName,
+      };
+    } else {
+      taskDetails = await this.promptForTaskDetails();
+      if (!taskDetails) return;
     }
 
     const { workspaceGid, projectGid, sectionGid } = taskDetails;
@@ -261,13 +253,24 @@ export default class AsanaPlugin extends Plugin {
         new Notice('No sections found. Skipping section selection.');
       }
 
-      return {
+      const result = {
         workspaceGid: workspace.gid,
         projectGid: projectWithType.isMyTasks ? '' : projectWithType.gid,
         sectionGid: selectedSection ? selectedSection.gid : '',
         projectName: projectWithType.name,
         sectionName: selectedSection ? selectedSection.name : '',
       };
+
+      this.settings.defaultWorkspaceGid = workspace.gid;
+      this.settings.defaultWorkspaceName = workspace.name;
+      this.settings.defaultProjectGid = result.projectGid;
+      this.settings.defaultProjectName = projectWithType.name;
+      this.settings.defaultProjectIsMyTasks = !!projectWithType.isMyTasks;
+      this.settings.defaultSectionGid = result.sectionGid;
+      this.settings.defaultSectionName = result.sectionName;
+      await this.saveSettings();
+
+      return result;
     } catch (error) {
       new Notice(`Error fetching Asana data: ${error.message}`);
       return null;
