@@ -18,10 +18,24 @@ jobs:
         with:
           node-version: "18.x"
 
+      - name: Verify manifest version matches tag
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          manifest=$(node -p "require('./manifest.json').version")
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::Tag $tag does not match manifest.json version $manifest."
+            echo "::error::Tag the commit that bumps manifest.json, not an earlier one."
+            exit 1
+          fi
+          echo "Tag $tag matches manifest.json version $manifest."
+
       - name: Build plugin
         run: |
           npm install
           npm run build
+
+      - name: Run tests
+        run: npm test
 
       - name: Create release
         env:
