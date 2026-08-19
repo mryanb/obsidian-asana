@@ -64,7 +64,10 @@ export async function fetchAsanaProjects(
 
       if (response.status >= 200 && response.status < 300) {
         allProjects.push(...response.json.data);
-        offset = response.json.next_page?.offset ?? null;
+
+        const nextOffset = response.json.next_page?.offset ?? null;
+        // Defensive: a repeated cursor would loop forever and freeze Obsidian.
+        offset = nextOffset === offset ? null : nextOffset;
       } else {
         throw new Error(`Asana API Error (${response.status}): ${response.text}`);
       }
@@ -153,7 +156,7 @@ export async function createTaskInAsana(
 
       // Move task to the selected section if provided
       if (sectionGid) {
-        await requestUrl({
+        const sectionResponse = await requestUrl({
           url: `${ASANA_API_BASE_URL}/sections/${sectionGid}/addTask`,
           method: 'POST',
           headers: {
@@ -167,6 +170,12 @@ export async function createTaskInAsana(
           }),
           throw: false,
         });
+
+        if (sectionResponse.status < 200 || sectionResponse.status >= 300) {
+          throw new Error(
+            `Asana API Error (${sectionResponse.status}): ${sectionResponse.text}`
+          );
+        }
       }
 
       // Fetch task details to get `permalink_url`
@@ -178,6 +187,12 @@ export async function createTaskInAsana(
         },
         throw: false,
       });
+
+      if (taskResponse.status < 200 || taskResponse.status >= 300) {
+        throw new Error(
+          `Asana API Error (${taskResponse.status}): ${taskResponse.text}`
+        );
+      }
 
       return taskResponse.json.data;
     } else {
