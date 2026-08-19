@@ -19,16 +19,17 @@ export async function fetchAsanaWorkspaces(settings: AsanaPluginSettings) {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      throw: false,
     });
 
     if (response.status >= 200 && response.status < 300) {
       return response.json.data; // Return workspace list
     } else {
-      throw new Error(`Asana API Error: ${response.text}`);
+      throw new Error(`Asana API Error (${response.status}): ${response.text}`);
     }
   } catch (error) {
     console.error('Failed to fetch Asana workspaces:', error);
-    throw new Error('Failed to retrieve workspaces from Asana');
+    throw error;
   }
 }
 
@@ -43,24 +44,39 @@ export async function fetchAsanaProjects(
   settings: AsanaPluginSettings
 ) {
   const token = settings.asanaToken;
+  const allProjects: any[] = [];
+  const archivedParam = settings.showArchivedProjects ? '' : '&archived=false';
+  let offset: string | null = null;
 
   try {
-    const response = await requestUrl({
-      url: `${ASANA_API_BASE_URL}/workspaces/${workspaceGid}/projects${settings.showArchivedProjects ? '' : '?is_archived=false'}`,
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    do {
+      const offsetParam = offset ? `&offset=${encodeURIComponent(offset)}` : '';
+      const url = `${ASANA_API_BASE_URL}/workspaces/${workspaceGid}/projects?limit=100${archivedParam}${offsetParam}`;
 
-    if (response.status >= 200 && response.status < 300) {
-      return response.json.data; // Return list of projects
-    } else {
-      throw new Error(`Asana API Error: ${response.text}`);
-    }
+      const response = await requestUrl({
+        url,
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        throw: false,
+      });
+
+      if (response.status >= 200 && response.status < 300) {
+        allProjects.push(...response.json.data);
+
+        const nextOffset = response.json.next_page?.offset ?? null;
+        // Defensive: a repeated cursor would loop forever and freeze Obsidian.
+        offset = nextOffset === offset ? null : nextOffset;
+      } else {
+        throw new Error(`Asana API Error (${response.status}): ${response.text}`);
+      }
+    } while (offset);
+
+    return allProjects;
   } catch (error) {
     console.error('Failed to fetch Asana projects:', error);
-    throw new Error('Failed to retrieve projects from Asana');
+    throw error;
   }
 }
 
@@ -83,16 +99,17 @@ export async function fetchAsanaSections(
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      throw: false,
     });
 
     if (response.status >= 200 && response.status < 300) {
       return response.json.data; // Return list of sections
     } else {
-      throw new Error(`Asana API Error: ${response.text}`);
+      throw new Error(`Asana API Error (${response.status}): ${response.text}`);
     }
   } catch (error) {
     console.error('Failed to fetch Asana sections:', error);
-    throw new Error('Failed to retrieve sections from Asana');
+    throw error;
   }
 }
 
@@ -131,6 +148,7 @@ export async function createTaskInAsana(
           assignee: projectGid ? undefined : 'me', // Assign to me if it's a My Tasks task
         },
       }),
+      throw: false,
     });
 
     if (response.status >= 200 && response.status < 300) {
@@ -138,7 +156,7 @@ export async function createTaskInAsana(
 
       // Move task to the selected section if provided
       if (sectionGid) {
-        await requestUrl({
+        const sectionResponse = await requestUrl({
           url: `${ASANA_API_BASE_URL}/sections/${sectionGid}/addTask`,
           method: 'POST',
           headers: {
@@ -150,7 +168,14 @@ export async function createTaskInAsana(
               task: taskGid,
             },
           }),
+          throw: false,
         });
+
+        if (sectionResponse.status < 200 || sectionResponse.status >= 300) {
+          throw new Error(
+            `Asana API Error (${sectionResponse.status}): ${sectionResponse.text}`
+          );
+        }
       }
 
       // Fetch task details to get `permalink_url`
@@ -160,15 +185,22 @@ export async function createTaskInAsana(
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        throw: false,
       });
+
+      if (taskResponse.status < 200 || taskResponse.status >= 300) {
+        throw new Error(
+          `Asana API Error (${taskResponse.status}): ${taskResponse.text}`
+        );
+      }
 
       return taskResponse.json.data;
     } else {
-      throw new Error(`Asana API Error: ${response.text}`);
+      throw new Error(`Asana API Error (${response.status}): ${response.text}`);
     }
   } catch (error) {
     console.error('Failed to create task:', error);
-    throw new Error('Failed to create task in Asana');
+    throw error;
   }
 }
 
@@ -187,17 +219,17 @@ export async function fetchAsanaUser(settings: AsanaPluginSettings) {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      throw: false,
     });
 
     if (response.status >= 200 && response.status < 300) {
-      console.log(response.json);
       return response.json.data;
     } else {
-      throw new Error(`Asana API Error: ${response.text}`);
+      throw new Error(`Asana API Error (${response.status}): ${response.text}`);
     }
   } catch (error) {
     console.error('Failed to fetch Asana user data:', error);
-    throw new Error('Failed to retrieve user data from Asana');
+    throw error;
   }
 }
 
@@ -215,8 +247,6 @@ export async function fetchMyTasksSections(
 ) {
   const token = settings.asanaToken;
 
-  console.log(`Making API call to: ${ASANA_API_BASE_URL}/users/me/user_task_list?workspace=${workspaceGid}`);
-
   try {
     // First, get the user's task list for the workspace
     const taskListResponse = await requestUrl({
@@ -225,16 +255,11 @@ export async function fetchMyTasksSections(
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      throw: false,
     });
-
-    console.log('taskListResponse');
-    console.log(taskListResponse);
 
     if (taskListResponse.status >= 200 && taskListResponse.status < 300) {
       const taskListGid = taskListResponse.json.data.gid;
-
-      console.log('taskListGid');
-      console.log(taskListGid);
 
       // Fetch sections using the same endpoint as projects, but with the task list GID
       const sectionsResponse = await requestUrl({
@@ -243,19 +268,20 @@ export async function fetchMyTasksSections(
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        throw: false,
       });
 
       if (sectionsResponse.status >= 200 && sectionsResponse.status < 300) {
         return sectionsResponse.json.data;
       } else {
-        throw new Error(`Failed to fetch sections: ${sectionsResponse.text}`);
+        throw new Error(`Asana API Error (${sectionsResponse.status}): ${sectionsResponse.text}`);
       }
     } else {
-      throw new Error(`Failed to fetch task list: ${taskListResponse.text}`);
+      throw new Error(`Asana API Error (${taskListResponse.status}): ${taskListResponse.text}`);
     }
   } catch (error) {
     console.error('Failed to fetch My Tasks sections:', error);
-    throw new Error('Failed to retrieve sections from My Tasks');
+    throw error;
   }
 }
 
@@ -278,15 +304,16 @@ export async function fetchUserTaskListGid(
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      throw: false,
     });
 
     if (response.status >= 200 && response.status < 300) {
       return response.json.data.gid;
     } else {
-      throw new Error(`Failed to fetch task list: ${response.text}`);
+      throw new Error(`Asana API Error (${response.status}): ${response.text}`);
     }
   } catch (error) {
     console.error('Failed to fetch user task list:', error);
-    throw new Error('Failed to retrieve user task list from Asana');
+    throw error;
   }
 }
